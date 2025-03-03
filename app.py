@@ -1,30 +1,24 @@
-from flask import Flask, jsonify
+from fastapi import FastAPI
 from pymongo import MongoClient
+from bson.json_util import dumps
+import os
 
-app = Flask(__name__)
+app = FastAPI()
 
-# MongoDB Atlas Connection
-mongo_uri = "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17%23@concentrix.txv3t.mongodb.net/?retryWrites=true&w=majority&appName=Concentrix"
-client = MongoClient(mongo_uri)
+# MongoDB Connection
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17#@concentrix.txv3t.mongodb.net/?retryWrites=true&w=majority&appName=Concentrix")
+client = MongoClient(MONGO_URI)
+db = client["nestle"]  # Replace with your actual database name
+collection = db["users"]  # Replace with your actual collection name
 
-# Select Database and Collection
-db = client["nestle_db"]  # Your Database Name
-collection = db["nestle"]  # Your Collection Name
+@app.get("/get_user_data/{user_id}")
+async def get_user_data(user_id: str):
+    user = collection.find_one({"user_id": user_id})
+    if user:
+        return dumps(user)
+    return {"error": "User ID not found"}
 
-@app.route('/get_user_data/<user_id>', methods=['GET'])
-def get_user_data(user_id):
-    try:
-        # Fetch document from MongoDB
-        user = collection.find_one({"_id": user_id})
-        
-        if user:
-            # Remove MongoDB ObjectId from the response
-            user['_id'] = str(user['_id'])
-            return jsonify(user), 200
-        else:
-            return jsonify({"error": "User ID not found"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# Run the app
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=10000)
