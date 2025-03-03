@@ -1,25 +1,31 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pymongo import MongoClient
-from bson import ObjectId
-import os
 
-# Initialize FastAPI
 app = FastAPI()
 
-# MongoDB Connection
-MONGO_URI = "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17#@concentrix.txv3t.mongodb.net/nestle_db?retryWrites=true&w=majority"
+MONGO_URI = "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17#@concentrix.txv3t.mongodb.net/?retryWrites=true&w=majority&appName=Concentrix"
 client = MongoClient(MONGO_URI)
 db = client["nestle_db"]
 employees_collection = db["employees"]
 
+@app.get("/")
+def home():
+    return {"message": "API is live"}
+
+@app.get("/testdb")
+def test_db():
+    try:
+        db.list_collection_names()  # Check if MongoDB is accessible
+        return {"message": "Connected to MongoDB"}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/get_employee/{employee_id}")
-async def get_employee(employee_id: str):
-    """Fetch employee data from MongoDB"""
+def get_employee(employee_id: str):
     employee = employees_collection.find_one({"_id": employee_id})
-
-    if not employee:
-        raise HTTPException(status_code=404, detail="Employee ID not found")
-
-    # Convert ObjectId fields to string
-    employee["_id"] = str(employee["_id"])
-    return employee
+    
+    if employee:
+        employee["_id"] = str(employee["_id"])  # Convert ObjectId to string
+        return employee
+    else:
+        return {"error": "Employee not found"}
