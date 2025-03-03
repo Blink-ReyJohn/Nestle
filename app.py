@@ -93,12 +93,12 @@ Nestlé Philippines
     try:
         msg = MIMEText(body)
         msg["Subject"] = subject
-        msg["From"] = "hr@company.com"
+        msg["From"] = "hr@nestlé.com"
         msg["To"] = recipient
 
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
-            server.login("your-email@gmail.com", "your-email-password")  # Replace with valid credentials
+            server.login("reyjohnandraje16@gmail.com", "Nikolov17#")  # Replace with valid credentials
             server.sendmail(msg["From"], [msg["To"]], msg.as_string())
 
         return {"success": f"Payslip email sent to {recipient}"}

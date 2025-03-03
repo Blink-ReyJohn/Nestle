@@ -21,14 +21,14 @@ payslip_data = {
     "generated_at": datetime.utcnow().isoformat(),
 }
 
-# Insert payslip data under the user
+# Update the employee document with payslip data
 result = employees.update_one(
-    {"id": user_id},
-    {"$set": {"Payslip": payslip_data}},
-    upsert=True
+    {"_id": user_id},  # Ensure we query by `_id`, not `id`
+    {"$set": {"Payslip": payslip_data}},  # Embed payslip inside employee document
+    upsert=False  # Ensure we don't create a new document if the employee doesn't exist
 )
 
-if result.modified_count > 0 or result.upserted_id:
+if result.modified_count > 0:
     print(f"Payslip added for Employee ID: {user_id}")
 else:
-    print(f"Failed to insert payslip data.")
+    print(f"Failed to insert payslip data. Employee ID may not exist.")
