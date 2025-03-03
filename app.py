@@ -98,7 +98,7 @@ Nestlé Philippines
 
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
-            server.login("reyjohnandraje16@gmail.com", "Nikolov17#")  # Replace with valid credentials
+            server.login("reyjohnandraje16@gmail.com", "tmxx fxjg akcb rcsi")  # Replace with valid credentials
             server.sendmail(msg["From"], [msg["To"]], msg.as_string())
 
         return {"success": f"Payslip email sent to {recipient}"}
