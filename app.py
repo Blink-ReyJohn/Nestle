@@ -13,6 +13,10 @@ client = MongoClient(MONGO_URI)
 db = client["nestle_db"]
 collection = db["employees"]
 
+# Email Credentials (Use environment variables for security)
+SMTP_USER = "reyjohnandraje16@gmail.com"
+SMTP_PASS = "tmxx fxjg akcb rcsi"  # Use an App Password instead of your actual password
+
 @app.get("/")
 def root():
     return {"message": "API is live"}
@@ -37,34 +41,35 @@ def check_employee(employee_id: str):
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def send_payslip_email(employee_id):
+def send_payslip_email(employee_id: str):
     """Fetch payslip data and send an email."""
 
-    # Fetch employee data
-    employee = collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1, "Payslip": 1})
+    try:
+        # Fetch employee data
+        employee = collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1, "Payslip": 1})
 
-    if not employee or "Payslip" not in employee:
-        return {"error": "Payslip not found for this employee."}
+        if not employee or "Payslip" not in employee:
+            return {"error": "Payslip not found for this employee."}
 
-    # Extract details
-    recipient = employee["email"]
-    employee_name = employee["name"]
-    payslip = employee["Payslip"]
-    
-    # Payslip details
-    month = payslip.get('month', 'Unknown')
-    year = payslip.get('year', 'Unknown')
-    job_position = payslip.get('job_position', 'Unknown')
-    basic_salary = payslip.get('basic_salary', 0)
-    allowances = payslip.get('allowances', 0)
-    bonuses = payslip.get('bonuses', 0)
-    deductions = payslip.get('deductions', 0)
-    tax = payslip.get('tax', 0)
-    net_salary = payslip.get('net_salary', 0)
+        # Extract details
+        recipient = employee["email"]
+        employee_name = employee["name"]
+        payslip = employee["Payslip"]
+        
+        # Payslip details
+        month = payslip.get("month", "Unknown")
+        year = payslip.get("year", "Unknown")
+        job_position = payslip.get("job_position", "Unknown")
+        basic_salary = payslip.get("basic_salary", 0)
+        allowances = payslip.get("allowances", 0)
+        bonuses = payslip.get("bonuses", 0)
+        deductions = payslip.get("deductions", 0)
+        tax = payslip.get("tax", 0)
+        net_salary = payslip.get("net_salary", 0)
 
-    # Email content
-    subject = f"Your Payslip for {month} {year}"
-    body = f"""Dear {employee_name},
+        # Email content
+        subject = f"Your Payslip for {month} {year}"
+        body = f"""Dear {employee_name},
 
 We are pleased to provide you with your payslip for {month} {year}.
 
@@ -89,25 +94,27 @@ HR Team
 Nestlé Philippines
 """
 
-    # Send email via SMTP
-    try:
+        # Send email via SMTP
         msg = MIMEText(body)
         msg["Subject"] = subject
-        msg["From"] = "hr@nestlé.com"
+        msg["From"] = SMTP_USER
         msg["To"] = recipient
 
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
-            server.login("reyjohnandraje16@gmail.com", "tmxx fxjg akcb rcsi")  # Replace with valid credentials
+            server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(msg["From"], [msg["To"]], msg.as_string())
 
         return {"success": f"Payslip email sent to {recipient}"}
 
+    except PyMongoError as db_error:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(db_error)}")
+    except smtplib.SMTPException as email_error:
+        raise HTTPException(status_code=500, detail=f"Email error: {str(email_error)}")
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 @app.post("/send_payslip/{employee_id}")
 def send_payslip(employee_id: str):
     """API endpoint to send payslip email by employee ID."""
-    result = send_payslip_email(employee_id)
-    return result
+    return send_payslip_email(employee_id)
