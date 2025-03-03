@@ -4,6 +4,9 @@ from pymongo.errors import PyMongoError
 import os
 import smtplib
 from email.mime.text import MIMEText
+import traceback
+import requests
+from dotenv import load_dotenv
 
 app = FastAPI()
 
@@ -13,9 +16,8 @@ client = MongoClient(MONGO_URI)
 db = client["nestle_db"]
 collection = db["employees"]
 
-# Email Credentials (Use environment variables for security)
-SMTP_USER = "reyjohnandraje16@gmail.com"
-SMTP_PASS = "tmxx fxjg akcb rcsi"  # Use an App Password instead of your actual password
+# Load environment variables
+load_dotenv()
 
 @app.get("/")
 def root():
@@ -41,35 +43,34 @@ def check_employee(employee_id: str):
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+
 def send_payslip_email(employee_id: str):
-    """Fetch payslip data and send an email."""
+    """Fetch payslip data and send an email via Brevo API."""
 
-    try:
-        # Fetch employee data
-        employee = collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1, "Payslip": 1})
+    # Fetch employee and payslip data
+    employee = collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1, "Payslip": 1})
 
-        if not employee or "Payslip" not in employee:
-            return {"error": "Payslip not found for this employee."}
+    if not employee or "Payslip" not in employee:
+        return {"error": "Payslip not found for this employee."}
 
-        # Extract details
-        recipient = employee["email"]
-        employee_name = employee["name"]
-        payslip = employee["Payslip"]
-        
-        # Payslip details
-        month = payslip.get("month", "Unknown")
-        year = payslip.get("year", "Unknown")
-        job_position = payslip.get("job_position", "Unknown")
-        basic_salary = payslip.get("basic_salary", 0)
-        allowances = payslip.get("allowances", 0)
-        bonuses = payslip.get("bonuses", 0)
-        deductions = payslip.get("deductions", 0)
-        tax = payslip.get("tax", 0)
-        net_salary = payslip.get("net_salary", 0)
+    # Extract details
+    recipient = employee["email"]
+    employee_name = employee["name"]
+    payslip = employee["Payslip"]
 
-        # Email content
-        subject = f"Your Payslip for {month} {year}"
-        body = f"""Dear {employee_name},
+    # Payslip details
+    month = payslip.get("month", "Unknown")
+    year = payslip.get("year", "Unknown")
+    job_position = payslip.get("job_position", "Unknown")
+    basic_salary = payslip.get("basic_salary", 0)
+    allowances = payslip.get("allowances", 0)
+    deductions = payslip.get("deductions", 0)
+    net_salary = payslip.get("net_salary", 0)
+
+    # Email content (UTF-8 encoded)
+    subject = f"Your Payslip for {month} {year}"
+    body = f"""Dear {employee_name},
 
 We are pleased to provide you with your payslip for {month} {year}.
 
@@ -81,9 +82,7 @@ Employee Details:
 Salary Breakdown:
 - Basic Salary: PHP {basic_salary:,.2f}
 - Allowances: PHP {allowances:,.2f}
-- Bonuses: PHP {bonuses:,.2f}
 - Deductions: PHP {deductions:,.2f}
-- Tax Deducted: PHP {tax:,.2f}
 
 Net Salary (Take-Home Pay): PHP {net_salary:,.2f}
 
@@ -94,25 +93,29 @@ HR Team
 Nestlé Philippines
 """
 
-        # Send email via SMTP
-        msg = MIMEText(body)
-        msg["Subject"] = subject
-        msg["From"] = SMTP_USER
-        msg["To"] = recipient
+    try:
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json; charset=utf-8",  # Ensure UTF-8 encoding
+            "api-key": BREVO_API_KEY
+        }
+        payload = {
+            "sender": {"name": "Nestlé HR Team", "email": "reyjohnandraje2002@gmail.com"},
+            "to": [{"email": recipient, "name": employee_name}],
+            "subject": subject,
+            "htmlContent": f"<pre>{body}</pre>"  # Keeps formatting
+        }
 
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(msg["From"], [msg["To"]], msg.as_string())
+        response = requests.post(url, json=payload, headers=headers)
 
-        return {"success": f"Payslip email sent to {recipient}"}
+        if response.status_code == 201:
+            return {"success": f"Payslip email sent to {recipient}"}
+        else:
+            return {"error": response.json()}
 
-    except PyMongoError as db_error:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(db_error)}")
-    except smtplib.SMTPException as email_error:
-        raise HTTPException(status_code=500, detail=f"Email error: {str(email_error)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+        return {"error": str(e)}
 
 @app.post("/send_payslip/{employee_id}")
 def send_payslip(employee_id: str):
