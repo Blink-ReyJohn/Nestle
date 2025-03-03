@@ -4,7 +4,7 @@ from bson import ObjectId
 
 app = FastAPI()
 
-MONGO_URI = "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17#@concentrix.txv3t.mongodb.net/?retryWrites=true&w=majority&appName=Concentrix"
+MONGO_URI = "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17%23@concentrix.txv3t.mongodb.net/?retryWrites=true&w=majority&appName=Concentrix"
 client = MongoClient(MONGO_URI)
 db = client["nestle_db"]
 employees_collection = db["employees"]
