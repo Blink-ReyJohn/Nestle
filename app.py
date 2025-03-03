@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pymongo import MongoClient
+from bson import ObjectId
 
 app = FastAPI()
 
@@ -22,8 +23,16 @@ def test_db():
 
 @app.get("/get_employee/{employee_id}")
 def get_employee(employee_id: str):
+    # Try to fetch by string ID
     employee = employees_collection.find_one({"_id": employee_id})
-    
+
+    # If not found, try fetching by ObjectId
+    if not employee:
+        try:
+            employee = employees_collection.find_one({"_id": ObjectId(employee_id)})
+        except:
+            return {"error": "Employee ID not found, check MongoDB"}
+
     if employee:
         employee["_id"] = str(employee["_id"])  # Convert ObjectId to string
         return employee
