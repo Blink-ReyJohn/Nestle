@@ -1,40 +1,35 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pymongo import MongoClient
-from bson import ObjectId
+from pymongo.errors import PyMongoError
+import os
 
 app = FastAPI()
 
-MONGO_URI = "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17%23@concentrix.txv3t.mongodb.net/?retryWrites=true&w=majority&appName=Concentrix"
+# MongoDB Connection
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17%23@concentrix.txv3t.mongodb.net/nestle_db?retryWrites=true&w=majority&appName=Concentrix")
 client = MongoClient(MONGO_URI)
 db = client["nestle_db"]
-employees_collection = db["employees"]
+collection = db["employees"]
 
 @app.get("/")
-def home():
+def root():
     return {"message": "API is live"}
 
 @app.get("/testdb")
 def test_db():
     try:
-        db.list_collection_names()  # Check if MongoDB is accessible
+        client.admin.command('ping')
         return {"message": "Connected to MongoDB"}
-    except Exception as e:
-        return {"error": str(e)}
+    except PyMongoError:
+        raise HTTPException(status_code=500, detail="Failed to connect to MongoDB")
 
-@app.get("/get_employee/{employee_id}")
-def get_employee(employee_id: str):
-    # Try to fetch by string ID
-    employee = employees_collection.find_one({"_id": employee_id})
-
-    # If not found, try fetching by ObjectId
-    if not employee:
-        try:
-            employee = employees_collection.find_one({"_id": ObjectId(employee_id)})
-        except:
-            return {"error": "Employee ID not found, check MongoDB"}
-
-    if employee:
-        employee["_id"] = str(employee["_id"])  # Convert ObjectId to string
-        return employee
-    else:
-        return {"error": "Employee not found"}
+@app.get("/check_employee/{employee_id}")
+def check_employee(employee_id: str):
+    try:
+        employee = collection.find_one({"_id": employee_id})
+        if employee:
+            return {"message": "Employee found", "name": employee.get("name", "Unknown")}
+        else:
+            return {"message": "Employee not found"}
+    except PyMongoError as e:
+        raise HTTPException(status_code=500, detail=str(e))
