@@ -43,7 +43,7 @@ def check_employee(employee_id: str):
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+BREVO_API_KEY = "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"
 
 def send_payslip_email(employee_id: str):
     """Fetch payslip data and send an email via Brevo API."""
