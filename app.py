@@ -2,10 +2,10 @@ from fastapi import FastAPI, HTTPException, Query
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 import os
-import smtplib
-from email.mime.text import MIMEText
-import traceback
 import requests
+import random
+import string
+from datetime import datetime
 from dotenv import load_dotenv
 
 app = FastAPI()
@@ -15,6 +15,7 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://reyjohnandraje2002:ReyjohnAndr
 client = MongoClient(MONGO_URI)
 db = client["nestle_db"]
 collection = db["employees"]
+hr_requests_collection = db["hr_requests"]
 
 # Load environment variables
 load_dotenv()
@@ -133,7 +134,7 @@ def send_payslip(employee_id: str, apiKey: str = Query(...)):
 def generate_id():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
-def create_hr_request(employee_id: str, category: str, details: str, status: str = "Pending"):
+def create_hr_request(employee_id: str, category: str, details: str, status: str = "Completed"):
     """Create a new HR request for Payroll & Payslip Issues after sending email."""
 
     # Generate a new 10-character alphanumeric ID
@@ -147,7 +148,7 @@ def create_hr_request(employee_id: str, category: str, details: str, status: str
         "_id": new_request_id,                      # Use generated ID
         "category": category,                        # Use the category passed as parameter
         "details": details,                          # Use the details passed as parameter
-        "status": status,                            # Set the status as Pending or Completed
+        "status": status,                            # Set the status as Completed
         "created_at": current_timestamp,            # Current timestamp for created_at
         "updated_at": current_timestamp,            # Current timestamp for updated_at
         "employee_id": employee_id                   # Add the employee ID
@@ -168,8 +169,8 @@ def update_employee_last_query(employee_id: str, last_query: str):
 
     # Update the employee's record with the new query and timestamp
     try:
-        result = employees_collection.update_one(
-            {"employee_id": employee_id},
+        result = collection.update_one(
+            {"_id": employee_id},
             {"$set": {
                 "lastQuery": last_query,
                 "timestamp": current_timestamp
@@ -185,7 +186,7 @@ def send_payslip_and_create_request(employee_id: str, category: str, details: st
     last_query = details  # Use the provided details as the lastQuery
 
     # Call the send_payslip_email function (assuming it's already defined)
-    email_response = send_payslip_email(employee_id)  # Call your email function
+    email_response = send_payslip(employee_id, apiKey='your_api_key_here')  # Call your email function
     
     if "success" in email_response:
         # If the email is sent successfully, create the HR request and update employee
