@@ -202,3 +202,23 @@ def add_payslips(employee_id: str, apiKey: str = Query(...)):
         return {"message": f"Payslips added for employee ID {employee_id}."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/check_payslip_month/{employee_id}")
+def check_payslip_month(employee_id: str, month: str = Query(...)):
+    """Check if a payslip for the given month exists for the employee."""
+    try:
+        # Ensure the month is case-insensitive by converting it to title case
+        month = month.strip().capitalize()
+
+        # Find the payslips for the employee and filter by the month
+        payslip = payslips_collection.find_one(
+            {"employee_id": employee_id, "month": month}
+        )
+
+        if payslip:
+            return {"message": f"Payslip found for {month}."}
+        else:
+            return {"message": f"No payslip found for {month}."}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
