@@ -25,6 +25,12 @@ DEFAULT_HEADERS = {
     "content-type": "application/json; charset=utf-8",  # Ensure UTF-8 encoding
 }
 
+# 'employees_collection' is the collection containing employee data.
+employees_collection = db["employees"]
+
+# 'payslips_collection' is a new collection we will use to store payslip data.
+payslips_collection = db["payslips"]
+
 @app.get("/")
 def root():
     return {"message": "API is live"}
@@ -145,47 +151,57 @@ def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Que
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# List of payslip data to insert (including last 5 months)
 payslip_data = [
-    {"month": "February", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3000, "deductions": 1200, "net_salary": 43800},
-    {"month": "January", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3200, "deductions": 1300, "net_salary": 44100},
-    {"month": "December", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3100, "deductions": 1250, "net_salary": 43950},
-    {"month": "November", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 2800, "deductions": 1150, "net_salary": 43700},
-    {"month": "October", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 2900, "deductions": 1200, "net_salary": 43900},
-    {"month": "September", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3100, "deductions": 1350, "net_salary": 43650},
+    {"month": "February", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3000, "deductions": 1200, "net_salary": 45000 + 3000 - 1200},
+    {"month": "January", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3200, "deductions": 1300, "net_salary": 45000 + 3200 - 1300},
+    {"month": "December", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3100, "deductions": 1250, "net_salary": 45000 + 3100 - 1250},
+    {"month": "November", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 2800, "deductions": 1150, "net_salary": 45000 + 2800 - 1150},
+    {"month": "October", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 2900, "deductions": 1200, "net_salary": 45000 + 2900 - 1200},
+    {"month": "September", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3100, "deductions": 1350, "net_salary": 45000 + 3100 - 1350},
 ]
 
-# Delete existing payslip part from employees collection
+# Function to delete the existing "Payslip" field from an employee document in the 'employees' collection
 def delete_existing_payslip(employee_id: str):
     employees_collection.update_one(
-        {"_id": employee_id},  # Find employee by ID
-        {"$unset": {"Payslip": ""}}  # Unset (remove) the "Payslip" field if it exists
+        {"_id": employee_id},
+        {"$unset": {"Payslip": ""}}  # Remove the "Payslip" field if it exists
     )
     print(f"Payslip field removed from employee {employee_id}.")
 
-# Add payslips to the new payslips collection for a specific employee
+# Function to add new payslips to the 'payslips' collection for a specific employee
 def add_payslips_to_new_collection(employee_id: str):
     # Check if the employee exists
     employee = employees_collection.find_one({"_id": employee_id})
     
     if employee:
-        # Insert payslips for the employee
+        # Loop through the payslip data and insert into 'payslips' collection
         for payslip in payslip_data:
-            payslip["generated_at"] = datetime.utcnow().isoformat()
-            payslip["employee_id"] = employee_id
-            payslip["employee_name"] = employee.get("name", "Unknown")  # Add employee name to payslip data
-            payslips_collection.insert_one(payslip)
-
+            payslip_record = payslip.copy()
+            payslip_record["generated_at"] = datetime.utcnow().isoformat()
+            payslip_record["employee_id"] = employee_id
+            payslip_record["employee_name"] = employee.get("name", "Unknown")  # Add employee name to payslip
+            payslips_collection.insert_one(payslip_record)
         print(f"Payslips added to the payslips collection for employee {employee_id}.")
     else:
         print(f"Employee with ID {employee_id} not found. No payslips added.")
 
-# FastAPI route to trigger the payslip deletion and insertion process
+# FastAPI route to trigger the deletion of the old payslip field and insertion of new payslip records
 @app.post("/add_payslips/{employee_id}")
-def add_payslips(employee_id: str):
+def add_payslips(employee_id: str, api_key: str = Query(...)):
+    # Validate the API key passed as a query parameter
+    if api_key != "your_api_key_here":
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+    
+    # Check if the employee exists before processing
+    employee = employees_collection.find_one({"_id": employee_id})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    
     try:
-        delete_existing_payslip(employee_id)  # Remove existing payslips for the employee
-        add_payslips_to_new_collection(employee_id)  # Add payslips to the new payslips collection
+        # Delete existing payslip data from the employee document (if any)
+        delete_existing_payslip(employee_id)
+        # Add the new payslips to the 'payslips' collection
+        add_payslips_to_new_collection(employee_id)
         return {"message": f"Payslips added for employee ID {employee_id}."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
