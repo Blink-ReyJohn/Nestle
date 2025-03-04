@@ -283,6 +283,8 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
 def add_recruit(firstName: str = Query(...), lastName: str = Query(...), email: str = Query(...), phoneNumber: str = Query(...)):
     """Add a new recruit while checking for duplicates in both recruitment and employee collections."""
 
+    print(f"Received: firstName={firstName}, lastName={lastName}, email={email}, phoneNumber={phoneNumber}")
+
     try:
         # Full name concatenation
         full_name = f"{firstName} {lastName}"
@@ -309,6 +311,9 @@ def add_recruit(firstName: str = Query(...), lastName: str = Query(...), email: 
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
+
+        result = recruitment_collection.insert_one(recruit_data)
+        print("MongoDB Insert Result:", result.inserted_id)  # Log the ID to confirm insertion
 
         recruitment_collection.insert_one(recruit_data)
         return {"message": "Recruit added successfully.", "recruit_id": recruit_data["_id"]}
