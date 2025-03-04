@@ -249,15 +249,20 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     
-    # Generate a new HR request ID for the leave request
+    # Generate a new HR request ID for the leave request using the provided generate_id function
     new_request_id = generate_id()
+    
+    # Convert the leave dates to "Month Day, Year" format
+    leave_start_formatted = leave_start.strftime("%B %d, %Y")
+    leave_end_formatted = leave_end.strftime("%B %d, %Y")
     
     # Leave application details
     leave_request = {
-        "employee_id": employee_id,    # The employee ID requesting the leave
+        "request_id": new_request_id,   # New unique request ID
+        "employee_id": employee_id,     # The employee ID requesting the leave
         "leave_type": leave,            # Type of leave (e.g., vacation, sick, etc.)
-        "leave_start": leave_start,     # Starting date of the leave
-        "leave_end": leave_end,         # Ending date of the leave
+        "leave_start": leave_start_formatted,  # Starting date of the leave
+        "leave_end": leave_end_formatted,    # Ending date of the leave
         "category": category,           # Category gathered from parameter
         "details": details,             # Details gathered from parameter
         "status": "Submitted",          # Status is set to "Submitted"
@@ -268,13 +273,7 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
     # Insert the leave request into the hr_requests collection
     try:
         hr_requests_collection.insert_one(leave_request)
-        return {"message": f"Leave request for {leave} from {leave_starting_date} to {leave_ending_date} has been submitted."}
+        return {"message": f"Leave request for {leave} from {leave_start_formatted} to {leave_end_formatted} has been submitted."}
     
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-# Function to generate a 10-character alphanumeric ID
-def generate_id():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
-
-
