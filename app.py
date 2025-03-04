@@ -182,7 +182,6 @@ def update_employee_last_query(employee_id: str, last_query: str):
 # After sending payslip email, call this function
 def send_payslip_and_create_request(employee_id: str, category: str, details: str):
     # Get the employee's last query (e.g., "Requested VPN access for remote work")
-    employee = employees_collection.find_one({"employee_id": employee_id})
     last_query = details  # Use the provided details as the lastQuery
 
     # Call the send_payslip_email function (assuming it's already defined)
