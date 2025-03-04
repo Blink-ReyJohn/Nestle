@@ -187,9 +187,9 @@ def add_payslips_to_new_collection(employee_id: str):
 
 # FastAPI route to trigger the deletion of the old payslip field and insertion of new payslip records
 @app.post("/add_payslips/{employee_id}")
-def add_payslips(employee_id: str, api_key: str = Query(...)):
+def add_payslips(employee_id: str, apiKey: str = Query(...)):
     # Validate the API key passed as a query parameter
-    if api_key != "your_api_key_here":
+    if apiKey != "your_api_key_here":
         raise HTTPException(status_code=401, detail="Invalid API Key")
     
     # Check if the employee exists before processing
