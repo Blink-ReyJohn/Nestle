@@ -229,9 +229,9 @@ def check_payslip_month(employee_id: str, month: str = Query(...), year: int = Q
 
 @app.post("/apply_leave/{employee_id}")
 def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: str = Query(...), leave_ending_date: str = Query(...), category: str = Query(...), details: str = Query(...)):
-    """Apply for leave and add the request to HR requests."""
+    """Apply for leave and add the request to HR requests collection."""
     
-    # Fetch employee data
+    # Fetch employee data to ensure the employee exists
     employee = employees_collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1})
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -254,24 +254,27 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
     
     # Leave application details
     leave_request = {
-        new_request_id: {
-            "category": category,  # Category gathered from parameter
-            "details": details,    # Details gathered from parameter
-            "status": "Submitted",  # Status is set to "Submitted"
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "employee_id": employee_id  # The employee ID requesting the leave
-        }
+        "employee_id": employee_id,    # The employee ID requesting the leave
+        "leave_type": leave,            # Type of leave (e.g., vacation, sick, etc.)
+        "leave_start": leave_start,     # Starting date of the leave
+        "leave_end": leave_end,         # Ending date of the leave
+        "category": category,           # Category gathered from parameter
+        "details": details,             # Details gathered from parameter
+        "status": "Submitted",          # Status is set to "Submitted"
+        "created_at": datetime.utcnow(),  # Timestamp of when the leave request was created
+        "updated_at": datetime.utcnow()   # Timestamp of the last update
     }
     
-    # Update the employee's HR requests with the new leave request
+    # Insert the leave request into the hr_requests collection
     try:
-        employees_collection.update_one(
-            {"_id": employee_id},
-            {"$set": {f"HR_Requests.{new_request_id}": leave_request[new_request_id]}}
-        )
+        hr_requests_collection.insert_one(leave_request)
         return {"message": f"Leave request for {leave} from {leave_starting_date} to {leave_ending_date} has been submitted."}
     
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Function to generate a 10-character alphanumeric ID
+def generate_id():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
 
