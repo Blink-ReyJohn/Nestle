@@ -128,3 +128,43 @@ def send_payslip(employee_id: str, apiKey: str = Query(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# After sending payslip email, call this function
+def send_payslip_and_create_request(employee_id: str, payslip_details: str):
+    # Call the send_payslip_email function (assuming it's already defined)
+    email_response = send_payslip_email(employee_id)  # Call your email function
+    
+    if "success" in email_response:
+        # If the email is sent successfully, create the HR request
+        hr_request_response = create_hr_request(employee_id, payslip_details)
+        return {"email_response": email_response, "hr_request_response": hr_request_response}
+    else:
+        return {"email_response": email_response}
+
+# Function to generate a 10-character alphanumeric ID
+def generate_id():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
+def create_hr_request(employee_id: str, details: str):
+    """Create a new HR request for Payroll & Payslip Issues after sending email."""
+
+    # Generate a new 10-character alphanumeric ID
+    new_request_id = generate_id()
+
+    # Structure of the HR request
+    hr_request = {
+        "_id": new_request_id,               # Use generated ID
+        "category": "Payroll & Payslip Issues",  # Modify the category
+        "details": details,                      # Use the provided details
+        "status": "Pending",                     # Set the status as Pending initially
+        "created_at": datetime.utcnow(),        # Current timestamp for created_at
+        "updated_at": datetime.utcnow(),        # Current timestamp for updated_at
+        "employee_id": employee_id              # Add the employee ID
+    }
+
+    try:
+        # Insert the new request into the HR requests collection
+        result = hr_requests_collection.insert_one(hr_request)
+        return {"message": f"HR request created with ID {new_request_id}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating HR request: {str(e)}")
