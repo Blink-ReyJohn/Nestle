@@ -295,14 +295,18 @@ def add_recruit(recruit: Recruit):
         # Full name concatenation
         full_name = f"{recruit.firstName} {recruit.lastName}"
 
+        print(f"Checking for existing recruit: {full_name}")
+
         # Check for duplicate in recruitment collection
         existing_recruit = recruitment_collection.find_one({"name": full_name})
         if existing_recruit:
+            print("Recruit already exists in recruitment collection.")
             raise HTTPException(status_code=400, detail="Recruit already exists in the recruitment collection.")
 
         # Check for duplicate in employees collection
         existing_employee = employees_collection.find_one({"name": full_name})
         if existing_employee:
+            print("This recruit is already an employee.")
             raise HTTPException(status_code=400, detail="This recruit is already an employee.")
 
         # Insert recruit data
@@ -318,9 +322,17 @@ def add_recruit(recruit: Recruit):
             "updated_at": datetime.utcnow()
         }
 
+        print("Inserting recruit data into MongoDB...")
         recruitment_collection.insert_one(recruit_data)
+        print("Recruit added successfully.")
+
         return {"message": "Recruit added successfully.", "recruit_id": recruit_data["_id"]}
 
     except PyMongoError as e:
-        print(f"MongoDB Error: {str(e)}")
+        print(f"MongoDB Error: {str(e)}")  # Print error to logs
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+
+    except Exception as e:
+        print(f"General Error: {str(e)}")  # Print any other errors
+        raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
+
