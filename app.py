@@ -270,9 +270,10 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
         "updated_at": datetime.utcnow()   # Timestamp of the last update
     }
     
-    # Insert the leave request into the hr_requests collection
+    # Insert the leave request into the hr_requests collection with request_id as _id
     try:
-        hr_requests_collection.insert_one(leave_request)
+        # Insert the document with the request_id as the document's _id
+        hr_requests_collection.insert_one(leave_request, {"_id": new_request_id})
         return {"message": f"Leave request for {leave} from {leave_start_formatted} to {leave_end_formatted} has been submitted."}
     
     except PyMongoError as e:
