@@ -278,3 +278,41 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
     
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/add_recruitment")
+def add_recruitment(name: str, lastName: str, email: str, phoneNumber: str):
+    """Add new recruitment to the 'recruitment' collection, check for duplicates by name in 'recruitment' and 'employee' collections."""
+    
+    # Check for duplicate names in the 'recruitment' collection
+    duplicate_recruitment = db["recruitment"].find_one({"name": name, "lastName": lastName})
+    if duplicate_recruitment:
+        raise HTTPException(status_code=400, detail="Recruitment entry with this name already exists.")
+    
+    # Check for duplicate names in the 'employee' collection
+    duplicate_employee = db["employees"].find_one({"name": name, "lastName": lastName})
+    if duplicate_employee:
+        raise HTTPException(status_code=400, detail="Employee entry with this name already exists.")
+    
+    # Generate a unique ID using the generate_id function
+    new_recruitment_id = generate_id()
+
+    # Recruitment data structure
+    new_recruitment = {
+        "_id": new_recruitment_id,
+        "name": name,
+        "lastName": lastName,
+        "email": email,
+        "phoneNumber": phoneNumber,
+        "status": "Pending",  # Default status is "Pending" when added
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+
+    try:
+        # Insert the new recruitment document into the 'recruitment' collection
+        db["recruitment"].insert_one(new_recruitment)
+        return {"message": f"Recruitment entry for {name} {lastName} added successfully."}
+    
+    except PyMongoError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
