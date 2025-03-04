@@ -49,6 +49,10 @@ def check_employee(employee_id: str):
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Function to generate a 10-character alphanumeric ID
+def generate_id():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
 @app.get("/send_payslip/{employee_id}")
 def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Query(...), details: str = Query(...)):
     """Fetch payslip data, send email and create HR request."""
