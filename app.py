@@ -144,3 +144,47 @@ def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Que
             raise HTTPException(status_code=400, detail="Failed to send email")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# List of payslip data to insert (including last 5 months)
+payslip_data = [
+    {"month": "February", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
+    {"month": "January", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
+    {"month": "December", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
+    {"month": "November", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
+    {"month": "October", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
+]
+
+# Delete existing payslip part from employees collection
+def delete_existing_payslip(employee_id: str):
+    employees_collection.update_one(
+        {"_id": employee_id},  # Find employee by ID
+        {"$unset": {"Payslip": ""}}  # Unset (remove) the "Payslip" field if it exists
+    )
+    print(f"Payslip field removed from employee {employee_id}.")
+
+# Add payslips to the new payslips collection for a specific employee
+def add_payslips_to_new_collection(employee_id: str):
+    # Check if the employee exists
+    employee = employees_collection.find_one({"_id": employee_id})
+    
+    if employee:
+        # Insert payslips for the employee
+        for payslip in payslip_data:
+            payslip["generated_at"] = datetime.utcnow().isoformat()
+            payslip["employee_id"] = employee_id
+            payslip["employee_name"] = employee.get("name", "Unknown")  # Add employee name to payslip data
+            payslips_collection.insert_one(payslip)
+
+        print(f"Payslips added to the payslips collection for employee {employee_id}.")
+    else:
+        print(f"Employee with ID {employee_id} not found. No payslips added.")
+
+# FastAPI route to trigger the payslip deletion and insertion process
+@app.post("/add_payslips/{employee_id}")
+def add_payslips(employee_id: str):
+    try:
+        delete_existing_payslip(employee_id)  # Remove existing payslips for the employee
+        add_payslips_to_new_collection(employee_id)  # Add payslips to the new payslips collection
+        return {"message": f"Payslips added for employee ID {employee_id}."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
