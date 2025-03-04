@@ -228,7 +228,7 @@ def check_payslip_month(employee_id: str, month: str = Query(...), year: int = Q
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/apply_leave/{employee_id}")
-def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: str = Query(...), leave_ending_date: str = Query(...)):
+def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: str = Query(...), leave_ending_date: str = Query(...), category: str = Query(...), details: str = Query(...)):
     """Apply for leave and add the request to HR requests."""
     
     # Fetch employee data
@@ -255,9 +255,9 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
     # Leave application details
     leave_request = {
         new_request_id: {
-            "category": "Leave Request",  # Category is always "Leave Request"
-            "details": f"Leave type: {leave}, from {leave_starting_date} to {leave_ending_date}",
-            "status": "Pending",  # Default status is "Pending"
+            "category": category,  # Category gathered from parameter
+            "details": details,    # Details gathered from parameter
+            "status": "Submitted",  # Status is set to "Submitted"
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
             "employee_id": employee_id  # The employee ID requesting the leave
