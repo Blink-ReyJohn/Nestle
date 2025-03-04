@@ -7,6 +7,7 @@ import random
 import string
 from datetime import datetime
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -279,15 +280,20 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Pydantic model for request body
+class Recruit(BaseModel):
+    firstName: str
+    lastName: str
+    email: str
+    phoneNumber: str
+
 @app.post("/add_recruit")
-def add_recruit(firstName: str = Query(...), lastName: str = Query(...), email: str = Query(...), phoneNumber: str = Query(...)):
+def add_recruit(recruit: Recruit):
     """Add a new recruit while checking for duplicates in both recruitment and employee collections."""
-
-    print(f"Received: firstName={firstName}, lastName={lastName}, email={email}, phoneNumber={phoneNumber}")
-
+    
     try:
         # Full name concatenation
-        full_name = f"{firstName} {lastName}"
+        full_name = f"{recruit.firstName} {recruit.lastName}"
 
         # Check for duplicate in recruitment collection
         existing_recruit = recruitment_collection.find_one({"name": full_name})
@@ -303,17 +309,14 @@ def add_recruit(firstName: str = Query(...), lastName: str = Query(...), email: 
         recruit_data = {
             "_id": generate_id(),
             "name": full_name,
-            "firstName": firstName,
-            "lastName": lastName,
-            "email": email,
-            "phoneNumber": phoneNumber,
+            "firstName": recruit.firstName,
+            "lastName": recruit.lastName,
+            "email": recruit.email,
+            "phoneNumber": recruit.phoneNumber,
             "status": "Pending",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
-
-        result = recruitment_collection.insert_one(recruit_data)
-        print("MongoDB Insert Result:", result.inserted_id)  # Log the ID to confirm insertion
 
         recruitment_collection.insert_one(recruit_data)
         return {"message": "Recruit added successfully.", "recruit_id": recruit_data["_id"]}
