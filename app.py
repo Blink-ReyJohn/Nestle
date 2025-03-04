@@ -14,7 +14,6 @@ app = FastAPI()
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://reyjohnandraje2002:ReyjohnAndraje17%23@concentrix.txv3t.mongodb.net/nestle_db?retryWrites=true&w=majority&appName=Concentrix")
 client = MongoClient(MONGO_URI)
 db = client["nestle_db"]
-collection = db["employees"]
 employees_collection = db["employees"]
 hr_requests_collection = db["hr_requests"]
 payslips_collection = db["payslips"]
@@ -43,7 +42,7 @@ def test_db():
 def check_employee(employee_id: str):
     """Check if an employee exists in MongoDB."""
     try:
-        employee = collection.find_one({"_id": employee_id})
+        employee = employees_collection.find_one({"_id": employee_id})
         if employee:
             return {"message": "Employee found", "name": employee.get("name", "Unknown")}
         else:
@@ -59,8 +58,11 @@ def generate_id():
 def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Query(...), details: str = Query(...)):
     """Fetch payslip data, send email, and create HR request under employee's HR_Requests field."""
     
+    # Store API key in a variable
+    api_key_variable = apiKey
+
     # Fetch employee data
-    employee = collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1, "Payslip": 1})
+    employee = employees_collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1, "Payslip": 1})
     if not employee:
         raise HTTPException(status_code=404, detail="No employee found")
     
@@ -107,7 +109,7 @@ def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Que
             "htmlContent": f"<pre>{body}</pre>"
         }
         headers = DEFAULT_HEADERS
-        headers["api-key"] = apiKey
+        headers["api-key"] = api_key_variable  # Use the apiKey passed in the query param
         response = requests.post(url, json=payload, headers=headers)
 
         if response.status_code == 201:
@@ -127,13 +129,13 @@ def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Que
             }
 
             # Update the employee's HR_Requests field with the new HR request
-            collection.update_one(
+            employees_collection.update_one(
                 {"_id": employee_id},  # Filter by employee ID
                 {"$set": {f"HR_Requests.{new_request_id}": new_request[new_request_id]}}  # Add the new HR request to HR_Requests
             )
 
             # Update the employee's last query and timestamp
-            collection.update_one(
+            employees_collection.update_one(
                 {"_id": employee_id},
                 {"$set": {
                     "lastQuery": details,
@@ -184,10 +186,9 @@ def add_payslips_to_new_collection(employee_id: str):
 # FastAPI route to trigger the deletion of the old payslip field and insertion of new payslip records
 @app.post("/add_payslips/{employee_id}")
 def add_payslips(employee_id: str, apiKey: str = Query(...)):
-    # Validate the API key passed as a query parameter
-    if apiKey != "your_api_key_here":
-        raise HTTPException(status_code=401, detail="Invalid API Key")
-    
+    # Store API key in a variable
+    api_key_variable = apiKey
+
     # Check if the employee exists before processing
     employee = employees_collection.find_one({"_id": employee_id})
     if not employee:
