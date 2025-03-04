@@ -147,11 +147,12 @@ def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Que
 
 # List of payslip data to insert (including last 5 months)
 payslip_data = [
-    {"month": "February", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
-    {"month": "January", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
-    {"month": "December", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
-    {"month": "November", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
-    {"month": "October", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 50000, "allowances": 5000, "deductions": 3000, "net_salary": 52000},
+    {"month": "February", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3000, "deductions": 1200, "net_salary": 43800},
+    {"month": "January", "year": 2025, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3200, "deductions": 1300, "net_salary": 44100},
+    {"month": "December", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3100, "deductions": 1250, "net_salary": 43950},
+    {"month": "November", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 2800, "deductions": 1150, "net_salary": 43700},
+    {"month": "October", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 2900, "deductions": 1200, "net_salary": 43900},
+    {"month": "September", "year": 2024, "job_position": "IT Support Specialist", "basic_salary": 45000, "allowances": 3100, "deductions": 1350, "net_salary": 43650},
 ]
 
 # Delete existing payslip part from employees collection
