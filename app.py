@@ -15,7 +15,9 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://reyjohnandraje2002:ReyjohnAndr
 client = MongoClient(MONGO_URI)
 db = client["nestle_db"]
 collection = db["employees"]
+employees_collection = db["employees"]
 hr_requests_collection = db["hr_requests"]
+payslips_collection = db["payslips"]
 
 # Load environment variables
 load_dotenv()
@@ -24,12 +26,6 @@ DEFAULT_HEADERS = {
     "accept": "application/json",
     "content-type": "application/json; charset=utf-8",  # Ensure UTF-8 encoding
 }
-
-# 'employees_collection' is the collection containing employee data.
-employees_collection = db["employees"]
-
-# 'payslips_collection' is a new collection we will use to store payslip data.
-payslips_collection = db["payslips"]
 
 @app.get("/")
 def root():
