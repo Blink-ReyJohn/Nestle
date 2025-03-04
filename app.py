@@ -19,6 +19,11 @@ collection = db["employees"]
 # Load environment variables
 load_dotenv()
 
+DEFAULT_HEADERS = {
+    "accept": "application/json",
+    "content-type": "application/json; charset=utf-8",  # Ensure UTF-8 encoding
+}
+
 @app.get("/")
 def root():
     return {"message": "API is live"}
@@ -43,23 +48,30 @@ def check_employee(employee_id: str):
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-BREVO_API_KEY = "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"
-
-def send_payslip_email(employee_id: str):
+@app.post("/send_payslip/{employee_id}")
+def send_payslip(employee_id: str, apiKey: str = Query(...)):
     """Fetch payslip data and send an email via Brevo API."""
-
-    # Fetch employee and payslip data
+    
+    # Use the provided API key in the query parameter
+    api_key = apiKey
+    
+    # Fetch employee data from the collection
     employee = collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1, "Payslip": 1})
 
-    if not employee or "Payslip" not in employee:
-        return {"error": "Payslip not found for this employee."}
+    # Check if employee exists
+    if not employee:
+        raise HTTPException(status_code=404, detail="No employee found")
+    
+    # Check if payslip exists for the employee
+    if "Payslip" not in employee or not employee["Payslip"]:
+        raise HTTPException(status_code=404, detail="No payslip found")
 
-    # Extract details
+    # Extract employee and payslip details
     recipient = employee["email"]
     employee_name = employee["name"]
     payslip = employee["Payslip"]
 
-    # Payslip details
+    # Payslip details (same as your current code)
     month = payslip.get("month", "Unknown")
     year = payslip.get("year", "Unknown")
     job_position = payslip.get("job_position", "Unknown")
@@ -72,34 +84,29 @@ def send_payslip_email(employee_id: str):
     subject = f"Your Payslip for {month} {year}"
     body = f"""Dear {employee_name},
 
-We are pleased to provide you with your payslip for {month} {year}.
+    We are pleased to provide you with your payslip for {month} {year}.
 
-Employee Details:
-- Name: {employee_name}
-- Position: {job_position}
-- Employee ID: {employee_id}
+    Employee Details:
+    - Name: {employee_name}
+    - Position: {job_position}
+    - Employee ID: {employee_id}
 
-Salary Breakdown:
-- Basic Salary: PHP {basic_salary:,.2f}
-- Allowances: PHP {allowances:,.2f}
-- Deductions: PHP {deductions:,.2f}
+    Salary Breakdown:
+    - Basic Salary: PHP {basic_salary:,.2f}
+    - Allowances: PHP {allowances:,.2f}
+    - Deductions: PHP {deductions:,.2f}
 
-Net Salary (Take-Home Pay): PHP {net_salary:,.2f}
+    Net Salary (Take-Home Pay): PHP {net_salary:,.2f}
 
-Your salary has been processed and credited to your registered bank account. If you have any questions, feel free to reach out.
+    Your salary has been processed and credited to your registered bank account. If you have any questions, feel free to reach out.
 
-Best regards,  
-HR Team  
-Nestlé Philippines
-"""
+    Best regards,  
+    HR Team  
+    Nestlé Philippines
+    """
 
     try:
         url = "https://api.brevo.com/v3/smtp/email"
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json; charset=utf-8",  # Ensure UTF-8 encoding
-            "api-key": BREVO_API_KEY
-        }
         payload = {
             "sender": {"name": "Nestlé HR Team", "email": "reyjohnandraje2002@gmail.com"},
             "to": [{"email": recipient, "name": employee_name}],
@@ -107,6 +114,11 @@ Nestlé Philippines
             "htmlContent": f"<pre>{body}</pre>"  # Keeps formatting
         }
 
+        # Set the API key in the header for the request
+        headers = DEFAULT_HEADERS
+        headers["api-key"] = api_key
+
+        # Send the email using the API
         response = requests.post(url, json=payload, headers=headers)
 
         if response.status_code == 201:
@@ -115,9 +127,4 @@ Nestlé Philippines
             return {"error": response.json()}
 
     except Exception as e:
-        return {"error": str(e)}
-
-@app.post("/send_payslip/{employee_id}")
-def send_payslip(employee_id: str):
-    """API endpoint to send payslip email by employee ID."""
-    return send_payslip_email(employee_id)
+        raise HTTPException(status_code=500, detail=str(e))
