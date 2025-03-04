@@ -129,37 +129,28 @@ def send_payslip(employee_id: str, apiKey: str = Query(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# After sending payslip email, call this function
-def send_payslip_and_create_request(employee_id: str, payslip_details: str):
-    # Call the send_payslip_email function (assuming it's already defined)
-    email_response = send_payslip_email(employee_id)  # Call your email function
-    
-    if "success" in email_response:
-        # If the email is sent successfully, create the HR request
-        hr_request_response = create_hr_request(employee_id, payslip_details)
-        return {"email_response": email_response, "hr_request_response": hr_request_response}
-    else:
-        return {"email_response": email_response}
-
 # Function to generate a 10-character alphanumeric ID
 def generate_id():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
-def create_hr_request(employee_id: str, details: str):
+def create_hr_request(employee_id: str, category: str, details: str, status: str = "Pending"):
     """Create a new HR request for Payroll & Payslip Issues after sending email."""
 
     # Generate a new 10-character alphanumeric ID
     new_request_id = generate_id()
 
+    # Current timestamp
+    current_timestamp = datetime.utcnow()
+
     # Structure of the HR request
     hr_request = {
-        "_id": new_request_id,               # Use generated ID
-        "category": "Payroll & Payslip Issues",  # Modify the category
-        "details": details,                      # Use the provided details
-        "status": "Pending",                     # Set the status as Pending initially
-        "created_at": datetime.utcnow(),        # Current timestamp for created_at
-        "updated_at": datetime.utcnow(),        # Current timestamp for updated_at
-        "employee_id": employee_id              # Add the employee ID
+        "_id": new_request_id,                      # Use generated ID
+        "category": category,                        # Use the category passed as parameter
+        "details": details,                          # Use the details passed as parameter
+        "status": status,                            # Set the status as Pending or Completed
+        "created_at": current_timestamp,            # Current timestamp for created_at
+        "updated_at": current_timestamp,            # Current timestamp for updated_at
+        "employee_id": employee_id                   # Add the employee ID
     }
 
     try:
@@ -168,3 +159,44 @@ def create_hr_request(employee_id: str, details: str):
         return {"message": f"HR request created with ID {new_request_id}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating HR request: {str(e)}")
+
+def update_employee_last_query(employee_id: str, last_query: str):
+    """Update the employee's last query and timestamp."""
+
+    # Current timestamp
+    current_timestamp = datetime.utcnow()
+
+    # Update the employee's record with the new query and timestamp
+    try:
+        result = employees_collection.update_one(
+            {"employee_id": employee_id},
+            {"$set": {
+                "lastQuery": last_query,
+                "timestamp": current_timestamp
+            }}
+        )
+        return result.modified_count > 0
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating employee: {str(e)}")
+
+# After sending payslip email, call this function
+def send_payslip_and_create_request(employee_id: str, category: str, details: str):
+    # Get the employee's last query (e.g., "Requested VPN access for remote work")
+    employee = employees_collection.find_one({"employee_id": employee_id})
+    last_query = details  # Use the provided details as the lastQuery
+
+    # Call the send_payslip_email function (assuming it's already defined)
+    email_response = send_payslip_email(employee_id)  # Call your email function
+    
+    if "success" in email_response:
+        # If the email is sent successfully, create the HR request and update employee
+        hr_request_response = create_hr_request(employee_id, category, details, status="Completed")
+
+        # Update the employee's last query and timestamp
+        if update_employee_last_query(employee_id, last_query):
+            return {"email_response": email_response, "hr_request_response": hr_request_response}
+        else:
+            return {"email_response": email_response, "error": "Failed to update employee's last query"}
+    else:
+        # If email sending failed, do not proceed with HR request creation or employee update
+        return {"email_response": email_response}
