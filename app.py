@@ -282,34 +282,32 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
 @app.post("/add_recruitment")
 def add_recruitment(name: str, lastName: str, email: str, phoneNumber: str):
     """Add new recruitment and check for duplicate entries."""
-    # Generate a unique ID for the new recruitment entry
     new_recruitment_id = generate_id()
 
-    # Check for duplicates in the 'recruitment' collection
-    duplicate_recruitment = recruitment_collection.find_one({"name": name, "lastName": lastName})
-    if duplicate_recruitment:
-        raise HTTPException(status_code=400, detail="This name already exists in the recruitment collection.")
-
-    # Check for duplicates in the 'employees' collection
-    duplicate_employee = employees_collection.find_one({"name": name, "lastName": lastName})
-    if duplicate_employee:
-        raise HTTPException(status_code=400, detail="This name already exists in the employee collection.")
-
-    # Create the new recruitment record
-    new_recruitment = {
-        "_id": new_recruitment_id,
-        "name": name,
-        "lastName": lastName,
-        "email": email,
-        "phoneNumber": phoneNumber,
-        "status": "Pending",  # Recruitment status
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    }
-
     try:
-        # Insert the new recruitment data into the 'recruitment' collection
+        # Check for duplicates in 'recruitment'
+        if recruitment_collection.find_one({"name": name, "lastName": lastName}):
+            raise HTTPException(status_code=400, detail="This name already exists in recruitment.")
+
+        # Check for duplicates in 'employees'
+        if employees_collection.find_one({"name": name, "lastName": lastName}):
+            raise HTTPException(status_code=400, detail="This name already exists in employees.")
+
+        # Insert new record
+        new_recruitment = {
+            "_id": new_recruitment_id,
+            "name": name,
+            "lastName": lastName,
+            "email": email,
+            "phoneNumber": phoneNumber,
+            "status": "Pending",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+
         recruitment_collection.insert_one(new_recruitment)
         return {"message": f"New recruitment added for {name} {lastName}."}
+
     except PyMongoError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"MongoDB Error: {str(e)}")  # Logs issue
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
