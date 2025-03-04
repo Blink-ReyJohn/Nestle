@@ -38,6 +38,10 @@ def test_db():
     except PyMongoError:
         raise HTTPException(status_code=500, detail="Failed to connect to MongoDB")
 
+# Function to generate a 10-character alphanumeric ID
+def generate_id():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
 @app.get("/check_employee/{employee_id}")
 def check_employee(employee_id: str):
     """Check if an employee exists in MongoDB."""
@@ -221,5 +225,53 @@ def check_payslip_month(employee_id: str, month: str = Query(...), year: int = Q
             return {"message": f"No payslip found for {month} {year}."}
     
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/apply_leave/{employee_id}")
+def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: str = Query(...), leave_ending_date: str = Query(...)):
+    """Apply for leave and add the request to HR requests."""
+    
+    # Fetch employee data
+    employee = employees_collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    
+    # Validate the leave parameters
+    try:
+        # Convert the string dates into datetime objects (DD/MM/YYYY format)
+        leave_start = datetime.strptime(leave_starting_date, "%d/%m/%Y")
+        leave_end = datetime.strptime(leave_ending_date, "%d/%m/%Y")
+        
+        # Ensure that the end date is not earlier than the start date
+        if leave_end < leave_start:
+            raise ValueError("End date cannot be earlier than the start date.")
+    
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    
+    # Generate a new HR request ID for the leave request
+    new_request_id = generate_id()
+    
+    # Leave application details
+    leave_request = {
+        new_request_id: {
+            "category": "Leave Request",  # Category is always "Leave Request"
+            "details": f"Leave type: {leave}, from {leave_starting_date} to {leave_ending_date}",
+            "status": "Pending",  # Default status is "Pending"
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "employee_id": employee_id  # The employee ID requesting the leave
+        }
+    }
+    
+    # Update the employee's HR requests with the new leave request
+    try:
+        employees_collection.update_one(
+            {"_id": employee_id},
+            {"$set": {f"HR_Requests.{new_request_id}": leave_request[new_request_id]}}
+        )
+        return {"message": f"Leave request for {leave} from {leave_starting_date} to {leave_ending_date} has been submitted."}
+    
+    except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
