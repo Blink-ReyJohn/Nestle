@@ -55,8 +55,8 @@ def generate_id():
 
 @app.get("/send_payslip/{employee_id}")
 def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Query(...), details: str = Query(...)):
-    """Fetch payslip data, send email and create HR request."""
-
+    """Fetch payslip data, send email, and create HR request under employee's HR_Requests field."""
+    
     # Fetch employee data
     employee = collection.find_one({"_id": employee_id}, {"_id": 0, "name": 1, "email": 1, "Payslip": 1})
     if not employee:
@@ -110,19 +110,27 @@ def send_payslip(employee_id: str, apiKey: str = Query(...), category: str = Que
 
         if response.status_code == 201:
             # After successfully sending email, create HR request and update employee
-            # Create HR request
-            new_request = {
-                "_id": generate_id(),  
-                "category": category,  
-                "details": details,  
-                "status": "Completed",  
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
-                "employee_id": employee_id
-            }
-            hr_requests_collection.insert_one(new_request)
+            # Generate a new HR request ID
+            new_request_id = generate_id()
 
-            # Update employee's last query and timestamp
+            # HR request data structure
+            new_request = {
+                new_request_id: {
+                    "category": category,  # Category passed as query parameter
+                    "details": details,    # Details passed as query parameter
+                    "status": "Completed",  # Set the status as "Completed"
+                    "created_at": datetime.utcnow(),  # Timestamp of when the request was created
+                    "updated_at": datetime.utcnow()   # Timestamp of the last update
+                }
+            }
+
+            # Update the employee's HR_Requests field with the new HR request
+            collection.update_one(
+                {"_id": employee_id},  # Filter by employee ID
+                {"$set": {f"HR_Requests.{new_request_id}": new_request[new_request_id]}}  # Add the new HR request to HR_Requests
+            )
+
+            # Update the employee's last query and timestamp
             collection.update_one(
                 {"_id": employee_id},
                 {"$set": {
