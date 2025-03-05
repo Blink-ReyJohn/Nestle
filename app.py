@@ -450,3 +450,32 @@ def add_reimbursement(employee_id: str = Query(...), expense_type: str = Query(.
     except Exception as e:
         print(f"General Error: {str(e)}")  # Log general errors
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
+
+@app.get("/check_reimbursement")
+def check_reimbursement(employee_id: str = Query(...)):
+    """Check all reimbursement requests for a specific employee."""
+    
+    try:
+        # Find reimbursement requests for the given employee ID
+        reimbursements = list(finance_requests_collection.find({"employee_id": employee_id}))
+
+        # If no reimbursement requests exist, return an error
+        if not reimbursements:
+            raise HTTPException(status_code=404, detail="No reimbursement requests found for this employee.")
+
+        # Convert _id to string before returning
+        for reimbursement in reimbursements:
+            reimbursement["_id"] = str(reimbursement["_id"])
+
+        return {
+            "message": "Reimbursement requests found.",
+            "reimbursements": reimbursements
+        }
+
+    except PyMongoError as e:
+        print(f"MongoDB Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+
+    except Exception as e:
+        print(f"General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
