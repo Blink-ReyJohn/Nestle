@@ -382,35 +382,38 @@ def check_employee(employee_id: str):
 @app.route("/add_expense", methods=["GET"])
 def add_expense():
     try:
-        # Extract employee_id
         employee_id = request.args.get("employee_id")
+        print(f"🔍 Received Employee ID: {employee_id}")  # Debugging
         if not employee_id:
             return jsonify({"error": "Missing employee_id"}), 400
-        
-        # Validate employee_id
+
+        # Validate employee ID
         if not check_employee(employee_id):
             return jsonify({"error": "Invalid employee ID"}), 404
 
-        # Extract remaining parameters (no validation required)
         category = request.args.get("category", "")
-        details = request.args.get("details", "{}")  # JSON string (expense_amount, expense_date)
+        details = request.args.get("details", "{}")
+        print(f"📌 Category: {category}, Details: {details}")  # Debugging
 
-        # Parse details (expected JSON format)
+        # Parse details safely
         try:
-            details_data = eval(details)  # Convert string to dict (Ensure proper security handling)
+            import json  # Ensure JSON is used instead of eval (security risk)
+            details_data = json.loads(details)
             expense_amount = float(details_data.get("expense_amount"))
             expense_date = datetime.strptime(details_data.get("expense_date"), "%Y-%m-%d").date()
-        except (ValueError, TypeError, SyntaxError, AttributeError, KeyError):
+        except Exception as e:
+            print(f"⚠️ Error parsing details: {e}")  # Debugging
             return jsonify({"error": "Invalid details format. Expected JSON with expense_amount and expense_date"}), 400
+
+        print(f"💰 Expense Amount: {expense_amount}, 📅 Expense Date: {expense_date}")  # Debugging
 
         # Ensure finance_requests collection exists
         if "finance_requests" not in db.list_collection_names():
             db.create_collection("finance_requests")
-
-        # Generate unique ID
-        expense_id = generate_id()
+            print("✅ Created 'finance_requests' collection")  # Debugging
 
         # Insert into database
+        expense_id = generate_id()
         expense_entry = {
             "_id": expense_id,
             "employee_id": employee_id,
@@ -419,12 +422,11 @@ def add_expense():
             "expense_date": expense_date.strftime("%Y-%m-%d"),
         }
         finance_requests_collection.insert_one(expense_entry)
+        print(f"✅ Expense {expense_id} added to DB")  # Debugging
 
         return jsonify({"message": "Expense added successfully", "expense_id": expense_id}), 201
 
-    except errors.ConnectionFailure:
-        return jsonify({"error": "Database connection failed"}), 500
-    except errors.PyMongoError as e:
-        return jsonify({"error": f"Database error: {str(e)}"}), 500
     except Exception as e:
+        print(f"🚨 Unexpected Error: {e}")  # Debugging
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
