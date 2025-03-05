@@ -20,6 +20,7 @@ hr_requests_collection = db["hr_requests"]
 payslips_collection = db["payslips"]
 recruitment_collection = db["recruitment"]
 finance_requests_collection = db["finance_requests"]
+onboarding_collection = db["on-boarding"]
 
 # Load environment variables
 load_dotenv()
@@ -326,93 +327,38 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Pydantic model for request body
-class Recruit(BaseModel):
-    firstName: str
-    lastName: str
-    email: str
-    phoneNumber: str
+@app.get("/create_onboarding_request")
+def create_onboarding_request(
+    employee_id: str = Query(...),
+    required_access: str = Query(...)
+):
+    """Create an onboarding request for an employee."""
 
-@app.post("/add_recruit")
-def add_recruit(recruit: Recruit):
-    """Add a new recruit while checking for duplicates in both recruitment and employee collections."""
-    
     try:
-        # Full name concatenation
-        full_name = f"{recruit.firstName} {recruit.lastName}"
+        # Ensure 'on-boarding' collection exists
+        if "on-boarding" not in db.list_collection_names():
+            db.create_collection("on-boarding")
 
-        print(f"Checking for existing recruit: {full_name}")
+        # Check if the employee exists
+        employee = employees_collection.find_one({"_id": employee_id})
+        if not employee:
+            raise HTTPException(status_code=404, detail="Employee not found.")
 
-        # Check for duplicate in recruitment collection
-        existing_recruit = recruitment_collection.find_one({"name": full_name})
-        if existing_recruit:
-            print("Recruit already exists in recruitment collection.")
-            raise HTTPException(status_code=400, detail="Recruit already exists in the recruitment collection.")
-
-        # Check for duplicate in employees collection
-        existing_employee = employees_collection.find_one({"name": full_name})
-        if existing_employee:
-            print("This recruit is already an employee.")
-            raise HTTPException(status_code=400, detail="This recruit is already an employee.")
-
-        # Insert recruit data
-        recruit_data = {
-            "_id": generate_id(),
-            "name": full_name,
-            "firstName": recruit.firstName,
-            "lastName": recruit.lastName,
-            "email": recruit.email,
-            "phoneNumber": recruit.phoneNumber,
+        # Insert onboarding request
+        onboarding_request = {
+            "employee_id": employee_id,
+            "required_access": required_access,
             "status": "Pending",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.utcnow()
         }
 
-        print("Inserting recruit data into MongoDB...")
-        recruitment_collection.insert_one(recruit_data)
-        print("Recruit added successfully.")
-
-        return {"message": "Recruit added successfully.", "recruit_id": recruit_data["_id"]}
+        onboarding_collection.insert_one(onboarding_request)
+        return {"message": "Onboarding request created successfully.", "employee_id": employee_id}
 
     except PyMongoError as e:
-        print(f"MongoDB Error: {str(e)}")  # Print error to logs
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
 
     except Exception as e:
-        print(f"General Error: {str(e)}")  # Print any other errors
-        raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
-
-@app.get("/search_recruit/{application_id}")
-def search_recruit(application_id: str):
-    """Search for a recruit by application_id and check if they are hired."""
-
-    try:
-        print(f"Searching for recruit with application_id: {application_id}")
-
-        # Search for the recruit in the recruitment collection
-        recruit = recruitment_collection.find_one({"_id": application_id})
-
-        if not recruit:
-            print("Recruit not found.")
-            raise HTTPException(status_code=404, detail="Recruit not found.")
-
-        # Check recruit status
-        if recruit.get("status") != "Hired":
-            print(f"Recruit found, but status is {recruit.get('status')}. Not hired yet.")
-            raise HTTPException(status_code=400, detail=f"Recruit status is '{recruit.get('status')}', not 'Hired'.")
-
-        # Convert _id to string before returning
-        recruit["_id"] = str(recruit["_id"])
-
-        print("Recruit is hired. Returning success response.")
-        return {"message": "Recruit is hired.", "recruit": recruit}
-
-    except PyMongoError as e:
-        print(f"MongoDB Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
-
-    except Exception as e:
-        print(f"General Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
 
 # Check if an employee exists
