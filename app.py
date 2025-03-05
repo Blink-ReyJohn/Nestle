@@ -332,7 +332,7 @@ def create_onboarding_request(
     employee_id: str = Query(...),
     required_access: str = Query("")
 ):
-    """Create an onboarding request for an employee."""
+    """Create an onboarding request for an employee, ensuring no duplicates."""
 
     try:
         # Ensure 'on-boarding' collection exists
@@ -343,6 +343,11 @@ def create_onboarding_request(
         employee = employees_collection.find_one({"_id": employee_id})
         if not employee:
             raise HTTPException(status_code=404, detail="Employee not found.")
+
+        # Check if an onboarding request already exists for this employee_id
+        existing_request = onboarding_collection.find_one({"employee_id": employee_id})
+        if existing_request:
+            raise HTTPException(status_code=400, detail="Onboarding request already exists for this employee.")
 
         # Generate a unique onboarding request ID
         onboarding_id = generate_id()
@@ -369,6 +374,31 @@ def create_onboarding_request(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
 
+@app.get("/check_onboarding_status")
+def check_onboarding_status(employee_id: str = Query(...)):
+    """Check if an employee's onboarding request is completed."""
+
+    try:
+        # Find the onboarding request by employee_id
+        onboarding_request = onboarding_collection.find_one({"employee_id": employee_id})
+
+        # If no request exists, return an error
+        if not onboarding_request:
+            raise HTTPException(status_code=404, detail="Onboarding request not found.")
+
+        # Check the status
+        status = onboarding_request.get("status", "Pending")
+
+        if status.lower() == "completed":
+            return {"message": "Onboarding process is completed.", "status": status}
+        else:
+            raise HTTPException(status_code=400, detail=f"Onboarding status is not completed. Current status: {status}")
+
+    except PyMongoError as e:
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
 
 # Check if an employee exists
 def check_employee(employee_id: str):
