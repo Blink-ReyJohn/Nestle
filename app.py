@@ -330,7 +330,7 @@ def apply_leave(employee_id: str, leave: str = Query(...), leave_starting_date: 
 @app.get("/create_onboarding_request")
 def create_onboarding_request(
     employee_id: str = Query(...),
-    required_access: str = Query(...)
+    required_access: str = Query("")
 ):
     """Create an onboarding request for an employee."""
 
@@ -344,8 +344,16 @@ def create_onboarding_request(
         if not employee:
             raise HTTPException(status_code=404, detail="Employee not found.")
 
+        # Generate a unique onboarding request ID
+        onboarding_id = generate_id()
+
+        # Ensure the generated _id is unique
+        while onboarding_collection.find_one({"_id": onboarding_id}):
+            onboarding_id = generate_id()
+
         # Insert onboarding request
         onboarding_request = {
+            "_id": onboarding_id,
             "employee_id": employee_id,
             "required_access": required_access,
             "status": "Pending",
@@ -353,13 +361,14 @@ def create_onboarding_request(
         }
 
         onboarding_collection.insert_one(onboarding_request)
-        return {"message": "Onboarding request created successfully.", "employee_id": employee_id}
+        return {"message": "Onboarding request created successfully.", "onboarding_id": onboarding_id}
 
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
+
 
 # Check if an employee exists
 def check_employee(employee_id: str):
