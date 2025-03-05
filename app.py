@@ -379,54 +379,45 @@ def check_employee(employee_id: str):
     except errors.PyMongoError:
         return False
 
-@app.route("/add_expense", methods=["GET"])
-def add_expense():
+@app.post("/add_reimbursement")
+def add_reimbursement(employee_id: str = Query(...), expense_type: str = Query(...), expense_amount: float = Query(...), expense_date: str = Query(...)):
+    """Add an expense reimbursement request after validating the employee exists."""
+    
     try:
-        employee_id = request.args.get("employee_id")
-        print(f"🔍 Received Employee ID: {employee_id}")  # Debugging
-        if not employee_id:
-            return jsonify({"error": "Missing employee_id"}), 400
+        # Check if employee exists
+        employee = employees_collection.find_one({"_id": employee_id})
+        if not employee:
+            print(f"Employee ID {employee_id} not found.")
+            raise HTTPException(status_code=400, detail="Employee not found.")
 
-        # Validate employee ID
-        if not check_employee(employee_id):
-            return jsonify({"error": "Invalid employee ID"}), 404
-
-        category = request.args.get("category", "")
-        details = request.args.get("details", "{}")
-        print(f"📌 Category: {category}, Details: {details}")  # Debugging
-
-        # Parse details safely
-        try:
-            import json  # Ensure JSON is used instead of eval (security risk)
-            details_data = json.loads(details)
-            expense_amount = float(details_data.get("expense_amount"))
-            expense_date = datetime.strptime(details_data.get("expense_date"), "%Y-%m-%d").date()
-        except Exception as e:
-            print(f"⚠️ Error parsing details: {e}")  # Debugging
-            return jsonify({"error": "Invalid details format. Expected JSON with expense_amount and expense_date"}), 400
-
-        print(f"💰 Expense Amount: {expense_amount}, 📅 Expense Date: {expense_date}")  # Debugging
-
-        # Ensure finance_requests collection exists
+        # Ensure the finance_requests collection exists
         if "finance_requests" not in db.list_collection_names():
             db.create_collection("finance_requests")
-            print("✅ Created 'finance_requests' collection")  # Debugging
+            print("Created finance_requests collection.")
 
-        # Insert into database
-        expense_id = generate_id()
-        expense_entry = {
-            "_id": expense_id,
+        # Insert reimbursement data
+        reimbursement_data = {
+            "_id": generate_id(),
             "employee_id": employee_id,
-            "category": category,
+            "employee_name": employee.get("name", "Unknown"),
+            "expense_type": expense_type,
             "expense_amount": expense_amount,
-            "expense_date": expense_date.strftime("%Y-%m-%d"),
+            "expense_date": expense_date,
+            "status": "Pending",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
         }
-        finance_requests_collection.insert_one(expense_entry)
-        print(f"✅ Expense {expense_id} added to DB")  # Debugging
 
-        return jsonify({"message": "Expense added successfully", "expense_id": expense_id}), 201
+        print(f"Inserting reimbursement for employee {employee_id}...")
+        finance_requests_collection.insert_one(reimbursement_data)
+        print("Reimbursement request added successfully.")
+
+        return {"message": "Reimbursement request added successfully.", "request_id": reimbursement_data["_id"]}
+
+    except PyMongoError as e:
+        print(f"MongoDB Error: {str(e)}")  # Log database errors
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
 
     except Exception as e:
-        print(f"🚨 Unexpected Error: {e}")  # Debugging
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
-
+        print(f"General Error: {str(e)}")  # Log general errors
+        raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
