@@ -337,3 +337,30 @@ def add_recruit(recruit: Recruit):
         print(f"General Error: {str(e)}")  # Print any other errors
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
 
+@app.get("/search_recruit/{application_id}")
+def search_recruit(application_id: str):
+    """Search for a recruit by application_id."""
+    
+    try:
+        print(f"Searching for recruit with application_id: {application_id}")
+
+        # Search for the recruit in the recruitment collection
+        recruit = recruitment_collection.find_one({"_id": application_id})
+
+        if not recruit:
+            print("Recruit not found.")
+            raise HTTPException(status_code=404, detail="Recruit not found.")
+
+        # Convert _id to string before returning
+        recruit["_id"] = str(recruit["_id"])
+
+        print("Recruit found:", recruit)
+        return recruit
+
+    except PyMongoError as e:
+        print(f"MongoDB Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+
+    except Exception as e:
+        print(f"General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
