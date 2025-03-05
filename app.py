@@ -339,8 +339,8 @@ def add_recruit(recruit: Recruit):
 
 @app.get("/search_recruit/{application_id}")
 def search_recruit(application_id: str):
-    """Search for a recruit by application_id."""
-    
+    """Search for a recruit by application_id and check if they are hired."""
+
     try:
         print(f"Searching for recruit with application_id: {application_id}")
 
@@ -351,11 +351,16 @@ def search_recruit(application_id: str):
             print("Recruit not found.")
             raise HTTPException(status_code=404, detail="Recruit not found.")
 
+        # Check recruit status
+        if recruit.get("status") != "Hired":
+            print(f"Recruit found, but status is {recruit.get('status')}. Not hired yet.")
+            raise HTTPException(status_code=400, detail=f"Recruit status is '{recruit.get('status')}', not 'Hired'.")
+
         # Convert _id to string before returning
         recruit["_id"] = str(recruit["_id"])
 
-        print("Recruit found:", recruit)
-        return recruit
+        print("Recruit is hired. Returning success response.")
+        return {"message": "Recruit is hired.", "recruit": recruit}
 
     except PyMongoError as e:
         print(f"MongoDB Error: {str(e)}")
