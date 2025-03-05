@@ -19,6 +19,7 @@ employees_collection = db["employees"]
 hr_requests_collection = db["hr_requests"]
 payslips_collection = db["payslips"]
 recruitment_collection = db["recruitment"]
+finance_requests_collection = db["finance_requests"]
 
 # Load environment variables
 load_dotenv()
@@ -369,3 +370,46 @@ def search_recruit(application_id: str):
     except Exception as e:
         print(f"General Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
+
+@app.route("/add_expense", methods=["GET"])
+def add_expense():
+    # Ensure the collection exists
+    if "finance_requests" not in db.list_collection_names():
+        db.create_collection("finance_requests")
+
+    # Get query parameters
+    employee_id = request.args.get("employee_id")
+    expense_type = request.args.get("expense_type")
+    expense_amount = request.args.get("expense_amount")
+    expense_date = request.args.get("expense_date")
+
+    # Validate required fields
+    if not all([employee_id, expense_type, expense_amount, expense_date]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    # Validate expense_amount as a number
+    try:
+        expense_amount = float(expense_amount)
+    except ValueError:
+        return jsonify({"error": "Invalid expense amount"}), 400
+
+    # Validate date format (YYYY-MM-DD)
+    try:
+        expense_date = datetime.strptime(expense_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    # Generate unique ID
+    expense_id = generate_id()
+
+    # Insert into database
+    expense_entry = {
+        "_id": expense_id,
+        "employee_id": employee_id,
+        "expense_type": expense_type,
+        "expense_amount": expense_amount,
+        "expense_date": expense_date.strftime("%Y-%m-%d"),
+    }
+    finance_requests_collection.insert_one(expense_entry)
+
+    return jsonify({"message": "Expense added successfully", "expense_id": expense_id}), 201
