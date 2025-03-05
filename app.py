@@ -45,6 +45,49 @@ def test_db():
 def generate_id():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
+@app.post("/add_employee")
+def add_employee(employee_id: str, name: str, job_title: str, starting_date: str):
+    """Add a new employee to the employees collection."""
+    try:
+        print(f"Checking if employee {employee_id} already exists...")
+        
+        # Check if the employee already exists
+        existing_employee = employees_collection.find_one({"_id": employee_id})
+        if existing_employee:
+            print("Employee already exists.")
+            raise HTTPException(status_code=400, detail="Employee already exists.")
+
+        # Convert starting_date to datetime format
+        try:
+            formatted_date = datetime.strptime(starting_date, "%m/%d/%Y")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use MM/DD/YYYY.")
+
+        # Create employee data
+        employee_data = {
+            "_id": employee_id,
+            "name": name,
+            "job_title": job_title,
+            "starting_date": formatted_date,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+
+        print("Inserting employee data into MongoDB...")
+        employees_collection.insert_one(employee_data)
+        print("Employee added successfully.")
+
+        return {"message": "Employee added successfully.", "employee_id": employee_id}
+
+    except PyMongoError as e:
+        print(f"MongoDB Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+
+    except Exception as e:
+        print(f"General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
+
+
 @app.get("/check_employee/{employee_id}")
 def check_employee(employee_id: str):
     """Check if an employee exists in MongoDB."""
