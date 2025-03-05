@@ -45,46 +45,47 @@ def test_db():
 def generate_id():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
-@app.post("/add_employee")
-def add_employee(employee_id: str, name: str, job_title: str, starting_date: str):
-    """Add a new employee to the employees collection."""
+# Function to generate a valid 11-digit employee_id
+def generate_employee_id():
+    return str(random.randint(10000000000, 99999999999))
+
+@app.get("/add_employee")
+def add_employee(
+    name: str = Query(...),
+    job_title: str = Query(...),
+    starting_date: str = Query(...)
+):
+    """Add a new employee with a generated employee_id."""
+
     try:
-        print(f"Checking if employee {employee_id} already exists...")
-        
+        # Generate a unique employee ID
+        employee_id = generate_employee_id()
+
+        # Ensure the generated ID is unique
+        while employees_collection.find_one({"_id": employee_id}):
+            employee_id = generate_employee_id()
+
         # Check if the employee already exists
-        existing_employee = employees_collection.find_one({"_id": employee_id})
+        existing_employee = employees_collection.find_one({"name": name})
         if existing_employee:
-            print("Employee already exists.")
             raise HTTPException(status_code=400, detail="Employee already exists.")
 
-        # Convert starting_date to datetime format
-        try:
-            formatted_date = datetime.strptime(starting_date, "%m/%d/%Y")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use MM/DD/YYYY.")
-
-        # Create employee data
+        # Insert employee data
         employee_data = {
             "_id": employee_id,
             "name": name,
             "job_title": job_title,
-            "starting_date": formatted_date,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "starting_date": starting_date,
+            "created_at": datetime.utcnow()
         }
 
-        print("Inserting employee data into MongoDB...")
         employees_collection.insert_one(employee_data)
-        print("Employee added successfully.")
-
         return {"message": "Employee added successfully.", "employee_id": employee_id}
 
     except PyMongoError as e:
-        print(f"MongoDB Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
 
     except Exception as e:
-        print(f"General Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
 
 
