@@ -479,3 +479,51 @@ def check_reimbursement(employee_id: str = Query(...)):
     except Exception as e:
         print(f"General Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
+
+@app.get("/add_procurement_request")
+def add_procurement_request(
+    employee_id: str = Query(...), 
+    item_name: str = Query(...), 
+    quantity: int = Query(...), 
+    reason: str = Query(...)
+):
+    """Add a new procurement request after validating the employee exists."""
+
+    try:
+        # Check if employee exists
+        employee = employees_collection.find_one({"_id": employee_id})
+        if not employee:
+            print(f"Employee ID {employee_id} not found.")
+            raise HTTPException(status_code=400, detail="Employee not found.")
+
+        # Ensure the procurement_requests collection exists
+        if "procurement_requests" not in db.list_collection_names():
+            db.create_collection("procurement_requests")
+            print("Created procurement_requests collection.")
+
+        # Insert procurement request data
+        procurement_data = {
+            "_id": generate_id(),
+            "employee_id": employee_id,
+            "employee_name": employee.get("name", "Unknown"),
+            "item_name": item_name,
+            "quantity": quantity,
+            "reason": reason,
+            "status": "Pending",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+
+        print(f"Inserting procurement request for employee {employee_id}...")
+        procurement_requests_collection.insert_one(procurement_data)
+        print("Procurement request added successfully.")
+
+        return {"message": "Procurement request added successfully.", "request_id": procurement_data["_id"]}
+
+    except PyMongoError as e:
+        print(f"MongoDB Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+
+    except Exception as e:
+        print(f"General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
