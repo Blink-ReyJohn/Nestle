@@ -18,6 +18,7 @@ db = client["nestle_db"]
 employees_collection = db["employees"]
 hr_requests_collection = db["hr_requests"]
 payslips_collection = db["payslips"]
+recruitment_collection = db["recruitment"]
 
 # Load environment variables
 load_dotenv()
