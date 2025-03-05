@@ -21,6 +21,7 @@ payslips_collection = db["payslips"]
 recruitment_collection = db["recruitment"]
 finance_requests_collection = db["finance_requests"]
 onboarding_collection = db["on-boarding"]
+procurement_requests_collection = db["procurement_requests"]
 
 # Load environment variables
 load_dotenv()
